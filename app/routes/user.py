@@ -1,11 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app.models.user import User
 from app.schemas.user import DisplayUser, LoginUser, SignupUser
 from app.utils.password import get_hashed_password, verify_password
 from app.utils.schema import HTTPError, get_db
-from app.utils.token import create_access_token, create_refresh_token
+from app.utils.token import (
+    JWTBearer,
+    create_access_token,
+    create_refresh_token,
+    decode_access_token,
+)
 
 router = APIRouter()
 
@@ -17,12 +24,14 @@ router = APIRouter()
         status.HTTP_201_CREATED: {"model": DisplayUser},
         status.HTTP_409_CONFLICT: {"model": HTTPError},
     },
+    response_model=DisplayUser,
     status_code=status.HTTP_201_CREATED,
 )
 def signup_user(request: SignupUser, db: Session = Depends(get_db)):
+
     if db.query(User.username).filter(User.username == request.username).count():
         raise HTTPException(status.HTTP_409_CONFLICT, detail="Username is taken")
-    print(request.password)
+
     user = User(
         username=request.username,
         password=get_hashed_password(request.password),
@@ -34,6 +43,7 @@ def signup_user(request: SignupUser, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
+
     return user
 
 
@@ -46,7 +56,7 @@ def signup_user(request: SignupUser, db: Session = Depends(get_db)):
     },
     status_code=status.HTTP_200_OK,
 )
-def login_user(request: LoginUser, db: Session = Depends(get_db)):
+def login_user(request: LoginUser, response: Response, db: Session = Depends(get_db)):
     if not db.query(User.id).filter(User.username == request.username).count():
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST, detail="Username does not exist"
@@ -60,11 +70,44 @@ def login_user(request: LoginUser, db: Session = Depends(get_db)):
         user_id = user_creds.id
         user_password = user_creds.password
         if verify_password(request.password, user_password):
+            access_token = create_access_token(user_id)
+            refresh_token = create_refresh_token(user_id)
+            response.set_cookie(
+                key="access_token",
+                value=f"{access_token}",
+                httponly=True,
+                expires=1,
+            )
+            # response.headers["Authorization"] = f"Bearer {access_token}"
             return {
-                "access_token": create_access_token(user_id),
-                "refresh_token": create_refresh_token(user_id),
+                "access_token": access_token,
+                "refresh_token": refresh_token,
             }
         else:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST, detail="Password is incorrect"
             )
+
+
+@router.get(
+    "/user/me",
+    description="Display user information",
+    responses={
+        status.HTTP_200_OK: {"model": DisplayUser},
+        status.HTTP_403_FORBIDDEN: {"model": HTTPError},
+    },
+    # dependencies=[Depends(JWTBearer())],
+)
+def display_user(request: Request, db: Session = Depends(get_db)):
+    access_token = request.headers["authorization"][7:]
+    cookie = request.cookies.get("access_token")
+    print(cookie)
+    # payload = decode_access_token(access_token)
+    try:
+        user_id = payload["sub"]
+        user = db.query(User).filter(User.id == user_id).first()
+    except KeyError as exception:
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED, detail="Access token is expired"
+        ) from exception
+    return user
