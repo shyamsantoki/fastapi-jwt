@@ -76,7 +76,7 @@ def login_user(request: LoginUser, response: Response, db: Session = Depends(get
                 key="access_token",
                 value=f"{access_token}",
                 httponly=True,
-                expires=1,
+                expires=60,
             )
             # response.headers["Authorization"] = f"Bearer {access_token}"
             return {
@@ -96,16 +96,15 @@ def login_user(request: LoginUser, response: Response, db: Session = Depends(get
         status.HTTP_200_OK: {"model": DisplayUser},
         status.HTTP_403_FORBIDDEN: {"model": HTTPError},
     },
-    # dependencies=[Depends(JWTBearer())],
+    dependencies=[Depends(JWTBearer())],
 )
 def display_user(request: Request, db: Session = Depends(get_db)):
     access_token = request.headers["authorization"][7:]
-    cookie = request.cookies.get("access_token")
-    print(cookie)
-    # payload = decode_access_token(access_token)
+    payload = decode_access_token(access_token)
     try:
         user_id = payload["sub"]
         user = db.query(User).filter(User.id == user_id).first()
+        print(user)
     except KeyError as exception:
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED, detail="Access token is expired"
