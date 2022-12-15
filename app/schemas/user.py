@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
 
-class CreateUser(BaseModel):
+class SignupUser(BaseModel):
     username: str
     password: str
     first_name: str
@@ -15,3 +15,8 @@ class DisplayUser(BaseModel):
     username: str
     first_name: str
     last_name: str
+
+
+class LoginUser(BaseModel):
+    username: str
+    password: str
