@@ -104,7 +104,6 @@ def display_user(request: Request, db: Session = Depends(get_db)):
     try:
         user_id = payload["sub"]
         user = db.query(User).filter(User.id == user_id).first()
-        print(user)
     except KeyError as exception:
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED, detail="Access token is expired"
