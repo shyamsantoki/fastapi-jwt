@@ -1,5 +1,4 @@
-from datetime import datetime
-
+""" Handles the user route """
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
@@ -28,6 +27,18 @@ router = APIRouter()
     status_code=status.HTTP_201_CREATED,
 )
 def signup_user(request: SignupUser, db: Session = Depends(get_db)):
+    """Creates a new user into the database
+
+    Args:
+        request (SignupUser): The Pydantic schema for validation.
+        db (Session, optional): The database session. Defaults to Depends(get_db).
+
+    Raises:
+        HTTPException: Raises exception if the username is taken
+
+    Returns:
+        User: The SQLAlchemy model
+    """
 
     if db.query(User.username).filter(User.username == request.username).count():
         raise HTTPException(status.HTTP_409_CONFLICT, detail="Username is taken")
@@ -58,10 +69,25 @@ def signup_user(request: SignupUser, db: Session = Depends(get_db)):
     status_code=status.HTTP_200_OK,
 )
 def login_user(request: LoginUser, response: Response, db: Session = Depends(get_db)):
+    """Allow existing users to log in.
+
+    Args:
+        request (LoginUser): The Pydantic schema for validation.
+        response (Response): The data to be sent back.
+        db (Session, optional): The database session. Defaults to Depends(get_db).
+
+    Raises:
+        HTTPException: Used when username or password, or both are invalid
+
+    Returns:
+        dict[str, str]: A dictionary containing access and refresh tokens
+    """
+
     if not db.query(User.id).filter(User.username == request.username).count():
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST, detail="Username does not exist"
         )
+
     else:
         user_creds = (
             db.query(User.password, User.id)
@@ -70,6 +96,7 @@ def login_user(request: LoginUser, response: Response, db: Session = Depends(get
         )
         user_id = user_creds.id
         user_password = user_creds.password
+
         if verify_password(request.password, user_password):
             access_token = create_access_token(user_id)
             refresh_token = create_refresh_token(user_id)
@@ -80,10 +107,12 @@ def login_user(request: LoginUser, response: Response, db: Session = Depends(get
                 expires=60,
             )
             # response.headers["Authorization"] = f"Bearer {access_token}"
+
             return {
                 "access_token": access_token,
                 "refresh_token": refresh_token,
             }
+
         else:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST, detail="Password is incorrect"
@@ -102,14 +131,30 @@ def login_user(request: LoginUser, response: Response, db: Session = Depends(get
     status_code=status.HTTP_200_OK,
 )
 def display_user(request: Request, db: Session = Depends(get_db)):
+    """The protected route. Displays current user information.
+
+    Args:
+        request (Request): The data we are getting
+        db (Session, optional): The database session. Defaults to Depends(get_db).
+
+    Raises:
+        HTTPException: Used when the token is expired or is invalid
+
+    Returns:
+        _type_: _description_
+    """
+
     # request.headers["authorization"] = response.headers["Authorization"]
     access_token = request.headers["authorization"][7:]
     payload = decode_access_token(access_token)
+
     try:
         user_id = payload["sub"]
         user = db.query(User).filter(User.id == user_id).first()
+
     except KeyError as exception:
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED, detail="Access token is expired"
         ) from exception
+
     return user
