@@ -39,6 +39,7 @@ def signup_user(request: SignupUser, db: Session = Depends(get_db)):
         last_name=request.last_name,
         email=request.email,
         gender=request.gender,
+        role=request.role,
     )
     db.add(user)
     db.commit()

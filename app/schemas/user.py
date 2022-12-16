@@ -10,6 +10,7 @@ class SignupUser(BaseModel):
     last_name: str
     email: str
     gender: str
+    role: str
 
 
 class DisplayUser(BaseModel):
