@@ -1,3 +1,5 @@
+import uuid
+
 from pydantic import BaseModel
 
 
@@ -11,10 +13,13 @@ class SignupUser(BaseModel):
 
 
 class DisplayUser(BaseModel):
-    id: str
+    id: uuid.UUID
     username: str
     first_name: str
     last_name: str
+
+    class Config:
+        orm_mode = True
 
 
 class LoginUser(BaseModel):

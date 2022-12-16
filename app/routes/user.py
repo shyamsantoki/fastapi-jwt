@@ -97,8 +97,11 @@ def login_user(request: LoginUser, response: Response, db: Session = Depends(get
         status.HTTP_403_FORBIDDEN: {"model": HTTPError},
     },
     dependencies=[Depends(JWTBearer())],
+    response_model=DisplayUser,
+    status_code=status.HTTP_200_OK,
 )
 def display_user(request: Request, db: Session = Depends(get_db)):
+    # request.headers["authorization"] = response.headers["Authorization"]
     access_token = request.headers["authorization"][7:]
     payload = decode_access_token(access_token)
     try:

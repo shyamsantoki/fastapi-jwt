@@ -9,7 +9,7 @@ from jose import JWTError, jwt
 
 load_dotenv()
 
-ACCESS_TOKEN_EXPIRE_MINUTES = 1  # 30 minutes
+ACCESS_TOKEN_EXPIRE_MINUTES = 30  # 30 minutes
 REFRESH_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 ALGORITHM = "HS256"
 JWT_SECRET_KEY = getenv("JWT_SECRET_KEY")  # should be kept secret
@@ -53,12 +53,10 @@ def decode_access_token(access_token: str) -> dict:
 
 class JWTBearer(HTTPBearer):
     def __init__(self, auto_error: bool = True):
-        super(JWTBearer, self).__init__(auto_error=auto_error)
+        super().__init__(auto_error=auto_error)
 
     async def __call__(self, request: Request):
-        credentials: HTTPAuthorizationCredentials = await super(
-            JWTBearer, self
-        ).__call__(request)
+        credentials: HTTPAuthorizationCredentials = await super().__call__(request)
         if credentials:
             if not credentials.scheme == "Bearer":
                 raise HTTPException(
